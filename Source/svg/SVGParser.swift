@@ -883,9 +883,10 @@ open class SVGParser {
     }
 
     fileprivate func parseImage(_ image: XMLIndexer, opacity: Double, pos: Transform = Transform(), clip: Locus?) -> Image? {
-        guard let element = image.element, let link = element.allAttributes["xlink:href"]?.text else {
+        guard let element = image.element else {
             return .none
         }
+        let link = element.allAttributes["xlink:href"]?.text ?? ""
         let position = pos.move(dx: getDoubleValue(element, attribute: "x") ?? 0, dy: getDoubleValue(element, attribute: "y") ?? 0)
         return Image(src: link, w: getIntValue(element, attribute: "width") ?? 0, h: getIntValue(element, attribute: "height") ?? 0, place: position, clip: clip, tag: getTag(element))
     }
