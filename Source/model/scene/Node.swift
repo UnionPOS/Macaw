@@ -251,9 +251,8 @@ open class Node: Drawable {
     func handleLongTap( _ event: TapEvent, touchBegan: Bool ) {
         isLongTapInProgress = touchBegan
         if touchBegan {
-            return
+            longTapHandlers.forEach { handler in handler.handle(event) }
         }
-        longTapHandlers.forEach { handler in handler.handle(event) }
     }
 
     func handlePan( _ event: PanEvent ) {
