@@ -10,7 +10,7 @@ internal class AnimationSequence: BasicAnimation {
         super.init()
 
         self.type = .sequence
-        self.nodeId = animations.first?.nodeId
+        self.node = animations.first?.node
         self.delay = delay
     }
 
@@ -82,7 +82,7 @@ internal class AnimationSequence: BasicAnimation {
 }
 
 public extension Sequence where Iterator.Element: Animation {
-    public func sequence(delay: Double = 0.0) -> Animation {
+    func sequence(delay: Double = 0.0) -> Animation {
 
         var sequence = [BasicAnimation]()
         self.forEach { animation in

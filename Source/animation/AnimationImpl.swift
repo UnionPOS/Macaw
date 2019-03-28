@@ -22,7 +22,8 @@ enum AnimationType {
 
 class BasicAnimation: Animation {
 
-    var nodeId: String?
+    weak var node: Node?
+    weak var nodeRenderer: NodeRenderer?
     var type = AnimationType.unknown
     let ID: String
     var next: BasicAnimation?
@@ -82,7 +83,7 @@ class BasicAnimation: Animation {
         manualStop = false
         paused = false
 
-        animationProducer.addAnimation(self)
+        animationProducer.play(self, AnimationContext())
     }
 
     override open func stop() {
@@ -132,8 +133,9 @@ class BasicAnimation: Animation {
 
 // MARK: - Hashable
 extension BasicAnimation: Hashable {
-    public var hashValue: Int {
-        return ID.hashValue
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(ID)
     }
 
     public static func == (lhs: BasicAnimation, rhs: BasicAnimation) -> Bool {

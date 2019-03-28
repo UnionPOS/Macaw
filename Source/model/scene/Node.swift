@@ -38,20 +38,6 @@ open class Node: Drawable {
         set(val) { effectVar.value = val }
     }
 
-    internal var id: String {
-        didSet {
-            Node.map.removeObject(forKey: id as NSString)
-            Node.map.setObject(self, forKey: id as NSString)
-        }
-    }
-
-    // MARK: - ID map
-    private static let map = NSMapTable<NSString, Node>(keyOptions: NSMapTableStrongMemory, valueOptions: NSMapTableWeakMemory)
-
-    public static func nodeBy(id: String) -> Node? {
-        return Node.map.object(forKey: id as NSString)
-    }
-
     // MARK: - Searching
     public func nodeBy(tag: String) -> Node? {
         if self.tag.contains(tag) {
@@ -66,6 +52,7 @@ open class Node: Drawable {
     }
 
     // MARK: - Events
+    internal var animationObservers = [AnimationObserver]()
 
     var touchPressedHandlers = [ChangeHandler<TouchEvent>]()
     var touchMovedHandlers = [ChangeHandler<TouchEvent>]()
@@ -86,7 +73,7 @@ open class Node: Drawable {
         touchPressedHandlers.append(handler)
 
         return Disposable { [weak self, unowned handler]  in
-            guard let index = self?.touchPressedHandlers.index(of: handler) else {
+            guard let index = self?.touchPressedHandlers.firstIndex(of: handler) else {
                 return
             }
 
@@ -94,12 +81,12 @@ open class Node: Drawable {
         }
     }
 
-    @discardableResult public func onTouchMoved   (_ f: @escaping (TouchEvent) -> Void) -> Disposable {
+    @discardableResult public func onTouchMoved(_ f: @escaping (TouchEvent) -> Void) -> Disposable {
         let handler = ChangeHandler<TouchEvent>(f)
         touchMovedHandlers.append(handler)
 
         return Disposable { [weak self, unowned handler] in
-            guard let index = self?.touchMovedHandlers.index(of: handler) else {
+            guard let index = self?.touchMovedHandlers.firstIndex(of: handler) else {
                 return
             }
 
@@ -112,7 +99,7 @@ open class Node: Drawable {
         touchReleasedHandlers.append(handler)
 
         return Disposable { [weak self, unowned handler] in
-            guard let index = self?.touchReleasedHandlers.index(of: handler) else {
+            guard let index = self?.touchReleasedHandlers.firstIndex(of: handler) else {
                 return
             }
 
@@ -129,7 +116,7 @@ open class Node: Drawable {
         }
 
         return Disposable { [weak self, unowned handler]  in
-            guard let index = self?.tapHandlers[tapCount]?.index(of: handler) else {
+            guard let index = self?.tapHandlers[tapCount]?.firstIndex(of: handler) else {
                 return
             }
 
@@ -142,7 +129,7 @@ open class Node: Drawable {
         longTapHandlers.append(handler)
 
         return Disposable { [weak self, unowned handler] in
-            guard let index = self?.longTapHandlers.index(of: handler) else {
+            guard let index = self?.longTapHandlers.firstIndex(of: handler) else {
                 return
             }
 
@@ -155,7 +142,7 @@ open class Node: Drawable {
         panHandlers.append(handler)
 
         return Disposable { [weak self, unowned handler] in
-            guard let index = self?.panHandlers.index(of: handler) else {
+            guard let index = self?.panHandlers.firstIndex(of: handler) else {
                 return
             }
 
@@ -168,7 +155,7 @@ open class Node: Drawable {
         rotateHandlers.append(handler)
 
         return Disposable { [weak self, unowned handler] in
-            guard let index = self?.rotateHandlers.index(of: handler) else {
+            guard let index = self?.rotateHandlers.firstIndex(of: handler) else {
                 return
             }
 
@@ -181,7 +168,7 @@ open class Node: Drawable {
         pinchHandlers.append(handler)
 
         return Disposable { [weak self, unowned handler] in
-            guard let index = self?.pinchHandlers.index(of: handler) else {
+            guard let index = self?.pinchHandlers.firstIndex(of: handler) else {
                 return
             }
 
@@ -306,7 +293,6 @@ open class Node: Drawable {
         self.clipVar = Variable<Locus?>(clip)
         self.maskVar = Variable<Node?>(mask)
         self.effectVar = Variable<Effect?>(effect)
-        self.id = NSUUID().uuidString
 
         super.init(
             visible: visible,
@@ -314,12 +300,24 @@ open class Node: Drawable {
         )
         self.placeVar.node = self
         self.opacityVar.node = self
-
-        Node.map.setObject(self, forKey: self.id as NSString)
     }
 
     open var bounds: Rect? {
         return .none
     }
 
+    // MARK: - Hash
+
+    override open var hash: Int {
+        var hasher = Hasher()
+        hasher.combine(Unmanaged.passUnretained(self).toOpaque())
+        return hasher.finalize()
+    }
+
+    override open func isEqual(_ object: Any?) -> Bool {
+        guard let object = object as? Node else {
+            return false
+        }
+        return Unmanaged.passUnretained(self).toOpaque() == Unmanaged.passUnretained(object).toOpaque()
+    }
 }

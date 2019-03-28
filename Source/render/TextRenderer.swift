@@ -9,7 +9,7 @@ import AppKit
 class TextRenderer: NodeRenderer {
     weak var text: Text?
 
-    init(text: Text, view: MView?, animationCache: AnimationCache?) {
+    init(text: Text, view: MacawView?, animationCache: AnimationCache?) {
         self.text = text
         super.init(node: text, view: view, animationCache: animationCache)
     }
@@ -35,6 +35,7 @@ class TextRenderer: NodeRenderer {
         observe(text.strokeVar)
         observe(text.alignVar)
         observe(text.baselineVar)
+        observe(text.kerningVar)
     }
 
     override func doRender(in context: CGContext, force: Bool, opacity: Double, coloringMode: ColoringMode = .rgb) {
@@ -46,29 +47,43 @@ class TextRenderer: NodeRenderer {
         let font = getMFont()
         // positive NSBaselineOffsetAttributeName values don't work, couldn't find why
         // for now move the rect itself
+        var attributes: [NSAttributedString.Key: Any] = [NSAttributedString.Key.font: font]
+        var hasFill = false
         if var color = text.fill as? Color {
             color = RenderUtils.applyOpacity(color, opacity: opacity)
-            var attributes = [NSAttributedString.Key.font: font,
-                              NSAttributedString.Key.foregroundColor: getTextColor(color)]
-            if let stroke = text.stroke {
-                if let c = stroke.fill as? Color {
-                    attributes[NSAttributedString.Key.strokeColor] = getTextColor(c)
-                }
-                attributes[NSAttributedString.Key.strokeWidth] = stroke.width as NSObject?
+            attributes[NSAttributedString.Key.foregroundColor] = getTextColor(color)
+            hasFill = true
+        }
+        if let stroke = text.stroke {
+            if let c = stroke.fill as? Color {
+                attributes[NSAttributedString.Key.strokeColor] = getTextColor(c)
             }
+            var width = stroke.width
+            if hasFill {
+                // To use fill and stroke at the same time width should be negative:
+                // https://developer.apple.com/library/archive/qa/qa1531/_index.html
+                width *= -1
+            }
+            attributes[NSAttributedString.Key.strokeWidth] = width as NSObject?
+        }
+        if text.kerning != 0.0 {
+            attributes[NSAttributedString.Key.kern] = NSNumber(value: text.kerning)
+        }
+
+        if attributes.count > 1 {
             MGraphicsPushContext(context)
             message.draw(in: getBounds(font), withAttributes: attributes)
             MGraphicsPopContext()
         }
     }
 
-    override func doFindNodeAt(location: CGPoint, ctx: CGContext) -> Node? {
-        guard let contains = node()?.bounds?.toCG().contains(location) else {
+    override func doFindNodeAt(path: NodePath, ctx: CGContext) -> NodePath? {
+        guard let node = node(), let contains = node.bounds?.toCG().contains(path.location) else {
             return .none
         }
 
         if contains {
-            return node()
+            return path
         }
 
         return .none
@@ -119,7 +134,13 @@ class TextRenderer: NodeRenderer {
             return .zero
         }
 
-        let textAttributes = [NSAttributedString.Key.font: font]
+        var textAttributes: [NSAttributedString.Key: Any] = [NSAttributedString.Key.font: font]
+        if text.kerning != 0.0 {
+            textAttributes[NSAttributedString.Key.kern] = NSNumber(value: text.kerning)
+        }
+        if let stroke = text.stroke {
+            textAttributes[NSAttributedString.Key.strokeWidth] = NSNumber(value: stroke.width)
+        }
         let textSize = NSString(string: text.text).size(withAttributes: textAttributes)
         return CGRect(x: calculateAlignmentOffset(text, font: font),
                       y: calculateBaselineOffset(text, font: font),
@@ -160,5 +181,13 @@ class TextRenderer: NodeRenderer {
 
         }
         return MColor.black
+    }
+
+    override func replaceNode(with replacementNode: Node) {
+        super.replaceNode(with: replacementNode)
+
+        if let node = replacementNode as? Text {
+            text = node
+        }
     }
 }
