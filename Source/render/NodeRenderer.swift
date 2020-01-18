@@ -22,6 +22,7 @@ class NodeRenderer {
     weak var animationCache: AnimationCache?
 
     init(node: Node, view: MacawView?, animationCache: AnimationCache?) {
+        print("NodeRenderer:init")
         self.view = view
         self.animationCache = animationCache
 
@@ -41,6 +42,7 @@ class NodeRenderer {
     }
 
     deinit {
+        print("NodeRenderer:deinit")
         disposables.dispose()
     }
 

@@ -10,12 +10,14 @@ class GroupRenderer: NodeRenderer {
     var renderers: [NodeRenderer] = []
 
     init(group: Group, view: MacawView?, animationCache: AnimationCache?) {
+        print("GroupRenderer:init")
         self.group = group
         super.init(node: group, view: view, animationCache: animationCache)
         updateRenderers()
     }
 
     deinit {
+        print("GroupRenderer:deinit")
         dispose()
     }
 

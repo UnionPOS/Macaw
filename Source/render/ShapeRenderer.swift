@@ -11,11 +11,13 @@ class ShapeRenderer: NodeRenderer {
     weak var shape: Shape?
 
     init(shape: Shape, view: MacawView?, animationCache: AnimationCache?) {
+        print("ShapeRenderer:init")
         self.shape = shape
         super.init(node: shape, view: view, animationCache: animationCache)
     }
 
     deinit {
+        print("ShapeRenderer:deinit")
         dispose()
     }
 

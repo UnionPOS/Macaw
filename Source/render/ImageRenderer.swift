@@ -14,11 +14,13 @@ class ImageRenderer: NodeRenderer {
     var renderedPaths: [CGPath] = [CGPath]()
 
     init(image: Image, view: MacawView?, animationCache: AnimationCache?) {
+        print("ImageRenderer:init")
         self.image = image
         super.init(node: image, view: view, animationCache: animationCache)
     }
 
     deinit {
+        print("ImageRenderer:deinit")
         dispose()
     }
 

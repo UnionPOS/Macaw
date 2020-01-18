@@ -10,11 +10,13 @@ class TextRenderer: NodeRenderer {
     weak var text: Text?
 
     init(text: Text, view: MacawView?, animationCache: AnimationCache?) {
+        print("TextRenderer:init")
         self.text = text
         super.init(node: text, view: view, animationCache: animationCache)
     }
 
     deinit {
+        print("TextRenderer:deinit")
         dispose()
     }
 
