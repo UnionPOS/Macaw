@@ -305,15 +305,6 @@ open class Node: Drawable {
     open var bounds: Rect? {
         return .none
     }
-    
-    func dispose() {
-        placeVar.dispose()
-        opaqueVar.dispose()
-        opacityVar.dispose()
-        clipVar.dispose()
-        maskVar.dispose()
-        effectVar.dispose()
-    }
 
     // MARK: - Hash
 

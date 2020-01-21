@@ -67,17 +67,6 @@ open class Text: Node {
             tag: tag
         )
     }
-    
-    override func dispose() {
-        textVar.dispose()
-        fontVar.dispose()
-        fillVar.dispose()
-        strokeVar.dispose()
-        alignVar.dispose()
-        baselineVar.dispose()
-        kerningVar.dispose()
-        super.dispose()
-    }
 
     override open var bounds: Rect {
         let font: MFont

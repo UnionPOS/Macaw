@@ -99,16 +99,6 @@ open class Image: Node {
             self?.mImage = nil
         }
     }
-    
-    override func dispose() {
-        srcVar.dispose()
-        xAlignVar.dispose()
-        yAlignVar.dispose()
-        aspectRatioVar.dispose()
-        wVar.dispose()
-        hVar.dispose()
-        super.dispose()
-    }
 
     override open var bounds: Rect? {
 

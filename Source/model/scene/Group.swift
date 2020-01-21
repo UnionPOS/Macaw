@@ -24,12 +24,6 @@ open class Group: Node {
         self.contents = contents
         self.contentsVar.node = self
     }
-    
-    override func dispose() {
-        contentsVar.dispose()
-        contents.removeAll()
-        super.dispose()
-    }
 
     // Searching
 
