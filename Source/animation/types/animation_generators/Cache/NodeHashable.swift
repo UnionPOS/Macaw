@@ -1,5 +1,7 @@
 // TODO: Implement better hash
 
+
+
 public func == (lhs: Node, rhs: Node) -> Bool {
     return lhs === rhs
 }

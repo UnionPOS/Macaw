@@ -9,5 +9,5 @@
 import Foundation
 
 open class AnimatableVariable<T>: Variable<T> {
-    unowned internal var node: Node?
+    weak internal var node: Node?
 }

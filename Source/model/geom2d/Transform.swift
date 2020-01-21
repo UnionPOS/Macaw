@@ -20,7 +20,7 @@ public final class Transform {
         self.dx = dx
         self.dy = dy
     }
-
+    
     deinit {
         print("Transform:deinit")
     }
