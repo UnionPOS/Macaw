@@ -15,7 +15,7 @@ class ChangeHandler<T>: Equatable {
         print("ChangeHandler:init")
         handle = f
     }
-    
+
     deinit {
         print("ChangeHandler:deinit")
     }
@@ -40,9 +40,13 @@ open class Variable<T> {
         print("Variable:init")
         value = v
     }
-    
+
     deinit {
         print("Variable:deinit")
+    }
+    
+    func dispose() {
+        handlers.removeAll()
     }
 
     @discardableResult open func onChange(_ f: @escaping ((T) -> Void)) -> Disposable {
@@ -58,6 +62,5 @@ open class Variable<T> {
             self?.handlers.remove(at: index)
         }
     }
-    
 
 }
