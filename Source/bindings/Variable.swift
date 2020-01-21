@@ -12,7 +12,12 @@ class  ChangeHandler<T>: Equatable {
     let handle: ((T) -> Void)
 
     init(_ f: @escaping ((T) -> Void) ) {
+        print("ChangeHandler:init")
         handle = f
+    }
+    
+    deinit {
+        print("ChangeHandler:deinit")
     }
 
     static func == (lhs: ChangeHandler<T>, rhs: ChangeHandler<T>) -> Bool {

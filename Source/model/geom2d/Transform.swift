@@ -12,12 +12,17 @@ public final class Transform {
     public static let identity: Transform = Transform()
 
     public init(m11: Double = 1, m12: Double = 0, m21: Double = 0, m22: Double = 1, dx: Double = 0, dy: Double = 0) {
+        print("Transform:init")
         self.m11 = m11
         self.m12 = m12
         self.m21 = m21
         self.m22 = m22
         self.dx = dx
         self.dy = dy
+    }
+    
+    deinit {
+        print("Transform:deinit")
     }
 
     public func move(dx: Double, dy: Double) -> Transform {
