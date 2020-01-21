@@ -27,6 +27,7 @@ open class Group: Node {
     
     override func dispose() {
         contentsVar.dispose()
+        contents.removeAll()
         super.dispose()
     }
 

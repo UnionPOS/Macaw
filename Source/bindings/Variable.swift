@@ -46,8 +46,7 @@ open class Variable<T> {
     }
     
     func dispose() {
-        handlers.forEach { handler in handler.handle(value) }
-        handlers = []
+        handlers.removeAll()
     }
 
     @discardableResult open func onChange(_ f: @escaping ((T) -> Void)) -> Disposable {
