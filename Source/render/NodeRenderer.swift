@@ -43,7 +43,7 @@ class NodeRenderer {
 
     deinit {
         print("NodeRenderer:deinit")
-        disposables.dispose()
+        dispose()
     }
 
     func doAddObservers() {
