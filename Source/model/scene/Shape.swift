@@ -43,6 +43,13 @@ open class Shape: Node {
         self.strokeVar.node = self
         self.fillVar.node = self
     }
+    
+    override func dispose() {
+        formVar.dispose()
+        fillVar.dispose()
+        strokeVar.dispose()
+        super.dispose()
+    }
 
     override open var bounds: Rect? {
         guard let ctx = createContext() else {

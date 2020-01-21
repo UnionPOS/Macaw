@@ -14,12 +14,7 @@ open class MacawView: MView, MGestureRecognizerDelegate {
     /// Scene root node
     open var node: Node = Group() {
         willSet {
-            node.placeVar.dispose()
-            node.opaqueVar.dispose()
-            node.opacityVar.dispose()
-            node.clipVar.dispose()
-            node.maskVar.dispose()
-            node.effectVar.dispose()
+            node.dispose()
         }
         didSet {
             layoutHelper.nodeChanged()
