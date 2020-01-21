@@ -8,7 +8,7 @@
 
 import Foundation
 
-class  ChangeHandler<T>: Equatable {
+class ChangeHandler<T>: Equatable {
     let handle: ((T) -> Void)
 
     init(_ f: @escaping ((T) -> Void) ) {

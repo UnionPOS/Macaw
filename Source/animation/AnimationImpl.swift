@@ -153,7 +153,7 @@ extension BasicAnimation {
 // Animated property list https://developer.apple.com/library/ios/documentation/Cocoa/Conceptual/CoreAnimation_guide/AnimatableProperties/AnimatableProperties.html
 internal class AnimationImpl<T: Interpolable>: BasicAnimation {
 
-    var variable: AnimatableVariable<T>
+    unowned var variable: AnimatableVariable<T>
     let initialValue: T
     let timeFactory: (() -> ((Double) -> T))
     let duration: Double
