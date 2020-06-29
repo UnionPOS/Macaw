@@ -11,6 +11,6 @@ open class RoundRect: Locus {
     }
 
     override open func bounds() -> Rect {
-        return rect
+        rect
     }
 }

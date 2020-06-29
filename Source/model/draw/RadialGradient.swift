@@ -22,6 +22,11 @@ open class RadialGradient: Gradient {
         guard let other = other as? RadialGradient else {
             return false
         }
-        return super.equals(other: other) && cx == other.cx && cy == other.cy && fx == other.fx && fy == other.fy && r == other.r
+        let cxEquals = cx == other.cx
+        let cyEquals = cy == other.cy
+        let fxEquals = fx == other.fx
+        let fyEquals = fy == other.fy
+        let rEquals = r == other.r
+        return super.equals(other: other) && cxEquals && cyEquals && fxEquals && fyEquals && rEquals
     }
 }

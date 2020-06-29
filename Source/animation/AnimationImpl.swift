@@ -22,7 +22,13 @@ enum AnimationType {
 
 class BasicAnimation: Animation {
 
-    weak var node: Node?
+    weak var node: Node? {
+        didSet {
+            if !(self is CombineAnimation || self is AnimationSequence || self is EmptyAnimation) {
+                node?.animations.append(self)
+            }
+        }
+    }
     weak var nodeRenderer: NodeRenderer?
     var type = AnimationType.unknown
     let ID: String
@@ -95,6 +101,8 @@ class BasicAnimation: Animation {
         }
 
         removeFunc?()
+        node?.animations.removeAll { $0 === self }
+        nodeRenderer?.freeLayer()
     }
 
     override open func pause() {
@@ -106,6 +114,8 @@ class BasicAnimation: Animation {
         }
 
         removeFunc?()
+        node?.animations.removeAll { $0 === self }
+        nodeRenderer?.freeLayer()
     }
 
     override func state() -> AnimationState {
@@ -125,10 +135,10 @@ class BasicAnimation: Animation {
     }
 
     override open func reverse() -> Animation {
-        return self
+        self
     }
 
-    func getDuration() -> Double { return 0 }
+    func getDuration() -> Double { 0 }
 }
 
 // MARK: - Hashable
@@ -139,14 +149,14 @@ extension BasicAnimation: Hashable {
     }
 
     public static func == (lhs: BasicAnimation, rhs: BasicAnimation) -> Bool {
-        return lhs.ID == rhs.ID
+        lhs.ID == rhs.ID
     }
 }
 
 // MARK: - Activity
 extension BasicAnimation {
     func isActive() -> Bool {
-        return progress > 0.0 && progress < 1.0
+        progress > 0.0 && progress < 1.0
     }
 }
 
@@ -273,6 +283,6 @@ open class AnimationDescription <T> {
     }
 
     open func t(_ duration: Double, delay: Double = 0.0) -> AnimationDescription<T> {
-        return AnimationDescription(valueFunc: valueFunc, duration: duration, delay: delay)
+        AnimationDescription(valueFunc: valueFunc, duration: duration, delay: delay)
     }
 }

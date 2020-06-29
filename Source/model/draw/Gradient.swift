@@ -12,6 +12,7 @@ open class Gradient: Fill {
         guard let other = other as? Gradient, userSpace == other.userSpace else {
             return false
         }
+
         if stops.isEmpty && other.stops.isEmpty {
             return true
         }

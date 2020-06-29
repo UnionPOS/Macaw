@@ -2,7 +2,7 @@ open class Group: Node {
 
     open var contentsVar: AnimatableVariable<[Node]>
     open var contents: [Node] {
-        get { return contentsVar.value }
+        get { contentsVar.value }
         set(val) {
             contentsVar.value = val
         }
@@ -55,7 +55,16 @@ open class Group: Node {
     }
 
     override open var bounds: Rect? {
-        return BoundsUtils.getNodesBounds(contents)
+        let bounds = BoundsUtils.getNodesBounds(contents)
+        if let bounds = bounds?.toCG(),
+            let clip = self.clip?.bounds().toCG() {
+            let newX = max(bounds.minX, clip.minX)
+            let newY = max(bounds.minY, clip.minY)
+            return Rect(Double(newX), Double(newY),
+                        Double(min(bounds.maxX, clip.maxX) - newX),
+                        Double(min(bounds.maxY, clip.maxY) - newY))
+        }
+        return bounds
     }
 
     override func shouldCheckForPressed() -> Bool {
@@ -118,6 +127,6 @@ open class Group: Node {
 
 public extension Array where Element: Node {
     func group( place: Transform = Transform.identity, opaque: Bool = true, opacity: Double = 1, clip: Locus? = nil, effect: Effect? = nil, visible: Bool = true, tag: [String] = []) -> Group {
-        return Group(contents: self, place: place, opaque: opaque, opacity: opacity, clip: clip, effect: effect, visible: visible, tag: tag)
+        Group(contents: self, place: place, opaque: opaque, opacity: opacity, clip: clip, effect: effect, visible: visible, tag: tag)
     }
 }

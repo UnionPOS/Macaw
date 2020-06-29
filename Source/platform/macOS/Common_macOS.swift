@@ -12,6 +12,7 @@ import Foundation
 import Cocoa
 import Quartz
 
+public typealias MWindow = NSWindow
 public typealias MFont = NSFont
 public typealias MFontDescriptor = NSFontDescriptor
 public typealias MColor = NSColor
@@ -30,41 +31,41 @@ public typealias MRotationGestureRecognizer = NSRotationGestureRecognizer
 public typealias MScreen = NSScreen
 
 func MDefaultRunLoopMode() -> RunLoop.Mode {
-    return RunLoop.Mode.default
+    RunLoop.Mode.default
 }
 
 extension MGestureRecognizer {
     var cancelsTouchesInView: Bool {
         get {
-            return false
+            false
         } set { }
     }
 }
 
 extension MTapGestureRecognizer {
     func mNumberOfTouches() -> Int {
-        return 1
+        1
     }
 }
 
 extension MPanGestureRecognizer {
     func mNumberOfTouches() -> Int {
-        return 1
+        1
     }
 
     func mLocationOfTouch(_ touch: Int, inView: NSView?) -> NSPoint {
-        return super.location(in: inView)
+        super.location(in: inView)
     }
 }
 
 extension MRotationGestureRecognizer {
     var velocity: CGFloat {
-        return 0.1
+        0.1
     }
 
     var mRotation: CGFloat {
         get {
-            return -rotation
+            -rotation
         }
 
         set {
@@ -76,7 +77,7 @@ extension MRotationGestureRecognizer {
 extension MPinchGestureRecognizer {
     var mScale: CGFloat {
         get {
-            return magnification + 1.0
+            magnification + 1.0
         }
 
         set {
@@ -85,21 +86,21 @@ extension MPinchGestureRecognizer {
     }
 
     func mLocationOfTouch(_ touch: Int, inView view: NSView?) -> NSPoint {
-        return super.location(in: view)
+        super.location(in: view)
     }
 }
 
 extension NSFont {
     var lineHeight: CGFloat {
-        return self.boundingRectForFont.size.height
+        self.boundingRectForFont.size.height
     }
 
     class var mSystemFontSize: CGFloat {
-        return NSFont.systemFontSize
+        NSFont.systemFontSize
     }
 
     class var mFamilyNames: [String] {
-        return NSFontManager.shared.availableFontFamilies
+        NSFontManager.shared.availableFontFamilies
     }
 
     class func mFontNames(forFamily: String) -> [String] {
@@ -116,13 +117,13 @@ extension NSFont {
 
 extension NSScreen {
     var mScale: CGFloat {
-        return self.backingScaleFactor
+        self.backingScaleFactor
     }
 }
 
 extension NSImage {
     var cgImage: CGImage? {
-        return self.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        self.cgImage(forProposedRect: nil, context: nil, hints: nil)
     }
 }
 
@@ -137,12 +138,12 @@ extension NSTouch {
 extension NSString {
     @nonobjc
     func size(attributes attrs: [NSAttributedString.Key: Any]? = nil) -> NSSize {
-        return size(withAttributes: attrs)
+        size(withAttributes: attrs)
     }
 }
 
 func MMainScreen() -> MScreen? {
-    return MScreen.main
+    MScreen.main
 }
 
 extension MBezierPath {
@@ -157,6 +158,35 @@ extension MBezierPath {
         )
 
         self.transform(using: affineTransform)
+    }
+}
+
+extension CGContext {
+    private struct CGContextScale {
+        static var _scale: CGFloat = 0.0
+    }
+
+    var scale: CGFloat {
+        get {
+            CGContextScale._scale
+        }
+
+        set(newValue) {
+            CGContextScale._scale = newValue
+        }
+    }
+}
+
+extension NSWindow {
+
+    func addSubview(_ subview: NSView) {
+        contentView?.addSubview(subview)
+    }
+}
+
+extension NSBezierPath {
+    var mUsesEvenOddFillRule: Bool {
+        self.windingRule == .evenOdd
     }
 }
 

@@ -11,6 +11,7 @@ import Foundation
 #if os(iOS)
 import UIKit
 
+public typealias MWindow = UIWindow
 public typealias MRectCorner = UIRectCorner
 public typealias MFont = UIFont
 public typealias MFontDescriptor = UIFontDescriptor
@@ -31,29 +32,29 @@ public typealias MScreen = UIScreen
 public typealias MViewContentMode = UIView.ContentMode
 
 func MDefaultRunLoopMode() -> RunLoop.Mode {
-    return RunLoop.Mode.default
+    RunLoop.Mode.default
 }
 
 extension MTapGestureRecognizer {
     func mNumberOfTouches() -> Int {
-        return numberOfTouches
+        numberOfTouches
     }
 }
 
 extension MPanGestureRecognizer {
     func mNumberOfTouches() -> Int {
-        return numberOfTouches
+        numberOfTouches
     }
 
     func mLocationOfTouch(_ touch: Int, inView: UIView?) -> CGPoint {
-        return super.location(ofTouch: touch, in: inView)
+        super.location(ofTouch: touch, in: inView)
     }
 }
 
 extension MRotationGestureRecognizer {
     final var mRotation: CGFloat {
         get {
-            return rotation
+            rotation
         }
 
         set {
@@ -65,7 +66,7 @@ extension MRotationGestureRecognizer {
 extension MPinchGestureRecognizer {
     var mScale: CGFloat {
         get {
-            return scale
+            scale
         }
 
         set {
@@ -74,27 +75,33 @@ extension MPinchGestureRecognizer {
     }
 
     func mLocationOfTouch(_ touch: Int, inView: UIView?) -> CGPoint {
-        return super.location(ofTouch: touch, in: inView)
+        super.location(ofTouch: touch, in: inView)
     }
 }
 
 extension MFont {
     class var mSystemFontSize: CGFloat {
-        return UIFont.systemFontSize
+        UIFont.systemFontSize
     }
 
     class var mFamilyNames: [String] {
-        return UIFont.familyNames
+        UIFont.familyNames
     }
 
     class func mFontNames(forFamily: String) -> [String] {
-        return UIFont.fontNames(forFamilyName: forFamily)
+        UIFont.fontNames(forFamilyName: forFamily)
     }
 }
 
 extension UIScreen {
     var mScale: CGFloat {
-        return self.scale
+        self.scale
+    }
+}
+
+extension UIBezierPath {
+    var mUsesEvenOddFillRule: Bool {
+        self.usesEvenOddFillRule
     }
 }
 

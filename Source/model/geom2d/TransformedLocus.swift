@@ -16,6 +16,6 @@ open class TransformedLocus: Locus {
     }
 
     open override func bounds() -> Rect {
-        return locus.bounds().applying(transform)
+        locus.bounds().applying(transform)
     }
 }

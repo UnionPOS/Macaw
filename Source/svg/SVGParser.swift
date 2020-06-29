@@ -37,7 +37,7 @@ open class SVGParser {
     /// - Throws: An SVGParserError of no such file
     @available(*, deprecated)
     open class func parse(path: String, ofType: String = "svg") throws -> Node {
-        return try SVGParser.parse(bundle: Bundle.main, path: path, ofType: ofType)
+        try SVGParser.parse(bundle: Bundle.main, path: path, ofType: ofType)
     }
 
     /// Parse an SVG file
@@ -74,14 +74,32 @@ open class SVGParser {
     /// Parse the specified content of an SVG file.
     /// - returns: Root node of the corresponding Macaw scene.
     open class func parse(text: String) throws -> Node {
-        return try SVGParser(text).parse()
+        try SVGParser(text).parse()
     }
 
-    let availableStyleAttributes = ["stroke", "stroke-width", "stroke-opacity", "stroke-dasharray", "stroke-dashoffset", "stroke-linecap", "stroke-linejoin", "stroke-miterlimit",
-                                    "fill", "fill-rule", "fill-opacity", "clip-path", "mask",
-                                    "opacity", "color", "stop-color", "stop-opacity",
-                                    "font-family", "font-size", "font-weight", "text-anchor",
-                                    "visibility", "display"]
+    let availableStyleAttributes = ["stroke",
+                                    "stroke-width",
+                                    "stroke-opacity",
+                                    "stroke-dasharray",
+                                    "stroke-dashoffset",
+                                    "stroke-linecap",
+                                    "stroke-linejoin",
+                                    "stroke-miterlimit",
+                                    "fill",
+                                    "fill-rule",
+                                    "fill-opacity",
+                                    "clip-path",
+                                    "mask",
+                                    "opacity",
+                                    "color",
+                                    "stop-color",
+                                    "stop-opacity",
+                                    "font-family",
+                                    "font-size",
+                                    "font-weight",
+                                    "text-anchor",
+                                    "visibility",
+                                    "display"]
 
     fileprivate let xmlString: String
     fileprivate let initialPosition: Transform
@@ -156,7 +174,7 @@ open class SVGParser {
             }
             if let id = element.allAttributes["id"]?.text {
                 switch element.name {
-                case "linearGradient", "radialGradient", "fill":
+                case "linearGradient", "radialGradient", SVGKeys.fill:
                     defFills[id] = try parseFill(node)
                 case "pattern":
                     defPatterns[id] = try parsePattern(node)
@@ -186,7 +204,11 @@ open class SVGParser {
     }
 
     fileprivate func parseViewBox(_ element: SWXMLHash.XMLElement) throws -> SVGNodeLayout? {
-        if element.allAttributes["width"] == nil && element.allAttributes["height"] == nil && element.allAttributes["viewBox"] == nil {
+        let widthAttributeNil = element.allAttributes["width"] == nil
+        let heightAttributeNil = element.allAttributes["height"] == nil
+        let viewBoxAttributeNil = element.allAttributes["viewBox"] == nil
+
+        if  widthAttributeNil && heightAttributeNil && viewBoxAttributeNil {
             return .none
         }
 
@@ -226,7 +248,11 @@ open class SVGParser {
             scalingMode = parseAspectRatio(strings[1])
         }
 
-        return SVGNodeLayout(svgSize: svgSize, viewBox: viewBox, scaling: scalingMode, xAlign: xAligningMode, yAlign: yAligningMode)
+        return SVGNodeLayout(svgSize: svgSize,
+                             viewBox: viewBox,
+                             scaling: scalingMode,
+                             xAlign: xAligningMode,
+                             yAlign: yAligningMode)
     }
 
     fileprivate func parseNode(_ node: XMLIndexer, groupStyle: [String: String] = [:]) throws -> Node? {
@@ -246,7 +272,10 @@ open class SVGParser {
                 result = try parseElement(node, style: style)
             }
 
-            if let result = result, let filterString = style["filter"], let filterId = parseIdFromUrl(filterString), let effect = defEffects[filterId] {
+            if let result = result,
+                let filterString = style["filter"],
+                let filterId = parseIdFromUrl(filterString),
+                let effect = defEffects[filterId] {
                 result.effect = effect
             }
         }
@@ -266,57 +295,126 @@ open class SVGParser {
         guard let element = node.element else {
             return .none
         }
+        let hasMask = style["mask"] != .none
         let position = getPosition(element)
         switch element.name {
         case "path":
             if var path = parsePath(node) {
+                let mask = try getMask(style, locus: path)
                 if let rule = getFillRule(style) {
                     path = Path(segments: path.segments, fillRule: rule)
                 }
-
-                let mask = try getMask(style, locus: path)
-
-                return Shape(form: path, fill: getFillColor(style, groupStyle: style, locus: path), stroke: getStroke(style, groupStyle: style), place: position, opacity: getOpacity(style), clip: getClipPath(style, locus: path), mask: mask, tag: getTag(element))
+                if !hasMask || hasMask && mask != .none {
+                    return Shape(form: path,
+                                 fill: getFillColor(style, groupStyle: style, locus: path),
+                                 stroke: getStroke(style, groupStyle: style),
+                                 place: position,
+                                 opacity: getOpacity(style),
+                                 clip: getClipPath(style, locus: path),
+                                 mask: mask,
+                                 tag: getTag(element))
+                }
             }
         case "line":
             if let line = parseLine(node) {
                 let mask = try getMask(style, locus: line)
-                return Shape(form: line, fill: getFillColor(style, groupStyle: style, locus: line), stroke: getStroke(style, groupStyle: style), place: position, opacity: getOpacity(style), clip: getClipPath(style, locus: line), mask: mask, tag: getTag(element))
+                if !hasMask || hasMask && mask != .none {
+                    return Shape(form: line,
+                                 fill: getFillColor(style, groupStyle: style, locus: line),
+                                 stroke: getStroke(style, groupStyle: style),
+                                 place: position,
+                                 opacity: getOpacity(style),
+                                 clip: getClipPath(style, locus: line),
+                                 mask: mask,
+                                 tag: getTag(element))
+                }
             }
         case "rect":
             if let rect = parseRect(node) {
                 let mask = try getMask(style, locus: rect)
-                return Shape(form: rect, fill: getFillColor(style, groupStyle: style, locus: rect), stroke: getStroke(style, groupStyle: style), place: position, opacity: getOpacity(style), clip: getClipPath(style, locus: rect), mask: mask, tag: getTag(element))
+                if !hasMask || hasMask && mask != .none {
+                    return Shape(form: rect,
+                                 fill: getFillColor(style, groupStyle: style, locus: rect),
+                                 stroke: getStroke(style, groupStyle: style),
+                                 place: position,
+                                 opacity: getOpacity(style),
+                                 clip: getClipPath(style, locus: rect),
+                                 mask: mask,
+                                 tag: getTag(element))
+                }
             }
         case "circle":
             if let circle = parseCircle(node) {
                 let mask = try getMask(style, locus: circle)
-                return Shape(form: circle, fill: getFillColor(style, groupStyle: style, locus: circle), stroke: getStroke(style, groupStyle: style), place: position, opacity: getOpacity(style), clip: getClipPath(style, locus: circle), mask: mask, tag: getTag(element))
+                if !hasMask || hasMask && mask != .none {
+                    return Shape(form: circle,
+                                 fill: getFillColor(style, groupStyle: style, locus: circle),
+                                 stroke: getStroke(style, groupStyle: style),
+                                 place: position,
+                                 opacity: getOpacity(style),
+                                 clip: getClipPath(style, locus: circle),
+                                 mask: mask,
+                                 tag: getTag(element))
+                }
             }
         case "ellipse":
             if let ellipse = parseEllipse(node) {
                 let mask = try getMask(style, locus: ellipse)
-                return Shape(form: ellipse, fill: getFillColor(style, groupStyle: style, locus: ellipse), stroke: getStroke(style, groupStyle: style), place: position, opacity: getOpacity(style), clip: getClipPath(style, locus: ellipse), mask: mask, tag: getTag(element))
+                if !hasMask || hasMask && mask != .none {
+                    return Shape(form: ellipse,
+                                 fill: getFillColor(style, groupStyle: style, locus: ellipse),
+                                 stroke: getStroke(style, groupStyle: style),
+                                 place: position,
+                                 opacity: getOpacity(style),
+                                 clip: getClipPath(style, locus: ellipse),
+                                 mask: mask,
+                                 tag: getTag(element))
+                }
             }
         case "polygon":
             if let polygon = parsePolygon(node) {
                 let mask = try getMask(style, locus: polygon)
-                return Shape(form: polygon, fill: getFillColor(style, groupStyle: style, locus: polygon), stroke: getStroke(style, groupStyle: style), place: position, opacity: getOpacity(style), clip: getClipPath(style, locus: polygon), mask: mask, tag: getTag(element))
+                if !hasMask || hasMask && mask != .none {
+                    return Shape(form: polygon,
+                                 fill: getFillColor(style, groupStyle: style, locus: polygon),
+                                 stroke: getStroke(style, groupStyle: style),
+                                 place: position,
+                                 opacity: getOpacity(style),
+                                 clip: getClipPath(style, locus: polygon),
+                                 mask: mask,
+                                 tag: getTag(element))
+                }
             }
         case "polyline":
             if let polyline = parsePolyline(node) {
                 let mask = try getMask(style, locus: polyline)
-                return Shape(form: polyline, fill: getFillColor(style, groupStyle: style, locus: polyline), stroke: getStroke(style, groupStyle: style), place: position, opacity: getOpacity(style), clip: getClipPath(style, locus: polyline), mask: mask, tag: getTag(element))
+                if !hasMask || hasMask && mask != .none {
+                    return Shape(form: polyline,
+                                 fill: getFillColor(style, groupStyle: style, locus: polyline),
+                                 stroke: getStroke(style, groupStyle: style),
+                                 place: position,
+                                 opacity: getOpacity(style),
+                                 clip: getClipPath(style, locus: polyline),
+                                 mask: mask,
+                                 tag: getTag(element))
+                }
             }
         case "image":
             return parseImage(node, opacity: getOpacity(style), pos: position, clip: getClipPath(style, locus: nil))
         case "text":
-            return parseText(node, textAnchor: getTextAnchor(style), fill: getFillColor(style, groupStyle: style),
-                             stroke: getStroke(style, groupStyle: style), opacity: getOpacity(style), fontName: getFontName(style), fontSize: getFontSize(style), fontWeight: getFontWeight(style), pos: position)
+            return parseText(node,
+                             textAnchor: getTextAnchor(style),
+                             fill: getFillColor(style, groupStyle: style),
+                             stroke: getStroke(style, groupStyle: style),
+                             opacity: getOpacity(style),
+                             fontName: getFontName(style),
+                             fontSize: getFontSize(style),
+                             fontWeight: getFontWeight(style),
+                             pos: position)
         case "use":
             return try parseUse(node, groupStyle: style, place: position)
         case "title", "desc", "mask", "clip", "filter",
-             "linearGradient", "radialGradient", "fill":
+             "linearGradient", "radialGradient", SVGKeys.fill:
             break
         default:
             print("SVG parsing error. Shape \(element.name) not supported")
@@ -347,7 +445,8 @@ open class SVGParser {
         }
 
         var parentPattern: UserSpacePattern?
-        if let link = element.allAttributes["xlink:href"]?.text.replacingOccurrences(of: " ", with: ""), link.hasPrefix("#") {
+        if let link = element.allAttributes["xlink:href"]?.text.replacingOccurrences(of: " ", with: ""),
+            link.hasPrefix("#") {
             let id = link.replacingOccurrences(of: "#", with: "")
             parentPattern = defPatterns[id]
         }
@@ -372,10 +471,9 @@ open class SVGParser {
             if let parentPattern = parentPattern {
                 contentNode = parentPattern.content
             }
-        } else if pattern.children.count == 1 {
-            if let shape = try parseNode(pattern.children.first!) as? Shape {
-                contentNode = shape
-            }
+        } else if pattern.children.count == 1,
+            let shape = try parseNode(pattern.children.first!) as? Shape {
+            contentNode = shape
         } else {
             var shapes = [Shape]()
             try pattern.children.forEach { indexer in
@@ -386,7 +484,10 @@ open class SVGParser {
             contentNode = Group(contents: shapes)
         }
 
-        return UserSpacePattern(content: contentNode!, bounds: bounds, userSpace: userSpace, contentUserSpace: contentUserSpace)
+        return UserSpacePattern(content: contentNode!,
+                                bounds: bounds,
+                                userSpace: userSpace,
+                                contentUserSpace: contentUserSpace)
     }
 
     fileprivate func parseGroup(_ group: XMLIndexer, style: [String: String]) throws -> Group? {
@@ -431,79 +532,85 @@ open class SVGParser {
 
     var count = 0
 
-    fileprivate func parseTransformationAttribute(_ attributes: String, transform: Transform = Transform()) -> Transform {
-        guard let matcher = SVGParserRegexHelper.getTransformAttributeMatcher() else {
-            return transform
-        }
+    fileprivate func parseTransformationAttribute(_ attributes: String,
+                                                  transform: Transform = Transform()) -> Transform {
+        // Transform attribute regular grammar (whitespace characters are ignored):
+        // ([a-zA-Z]+)\(((-?\d+\.?\d*e?-?\d*,?)+)\)
+        // Group (1) is an attribute name.
+        // Group (2) is comma-separated numbers.
 
-        let attributes = attributes.replacingOccurrences(of: "\n", with: "")
-        var finalTransform = transform
-        let fullRange = NSRange(location: 0, length: attributes.count)
+        var transform = transform
+        let scanner = Scanner(string: attributes)
 
-        if let matchedAttribute = matcher.firstMatch(in: attributes, options: .reportCompletion, range: fullRange) {
+        stopParse: while !scanner.isAtEnd {
+            guard let attributeName = scanner.scannedCharacters(from: .transformationAttributeCharacters),
+                scanner.scanString("(", into: nil),
+                let valuesString = scanner.scannedUpToString(")"),
+                scanner.scanString(")", into: nil) else {
+                    break stopParse
+            }
 
-            let attributeName = (attributes as NSString).substring(with: matchedAttribute.range(at: 1))
-            let values = parseTransformValues((attributes as NSString).substring(with: matchedAttribute.range(at: 2)))
+            // Skip an optional comma after ")".
+            _ = scanner.scanString(",", into: nil)
+
+            let values = parseTransformValues(valuesString)
             if values.isEmpty {
                 return transform
             }
+
             switch attributeName {
             case "translate":
-                if let x = Double(values[0]) {
-                    var y: Double = 0
-                    if values.indices.contains(1) {
-                        y = Double(values[1]) ?? 0
-                    }
-                    finalTransform = transform.move(dx: x, dy: y)
+                let x = values[0]
+                var y: Double = 0
+                if values.indices ~= 1 {
+                    y = values[1]
                 }
+                transform = transform.move(dx: x, dy: y)
             case "scale":
-                if let x = Double(values[0]) {
-                    var y: Double = x
-                    if values.indices.contains(1) {
-                        y = Double(values[1]) ?? x
-                    }
-                    finalTransform = transform.scale(sx: x, sy: y)
+                let x = values[0]
+                var y: Double = x
+                if values.indices ~= 1 {
+                    y = values[1]
                 }
+                transform = transform.scale(sx: x, sy: y)
             case "rotate":
-                if let angle = Double(values[0]) {
-                    if values.count == 1 {
-                        finalTransform = transform.rotate(angle: degreesToRadians(angle))
-                    } else if values.count == 3 {
-                        if let x = Double(values[1]), let y = Double(values[2]) {
-                            finalTransform = transform.move(dx: x, dy: y).rotate(angle: degreesToRadians(angle)).move(dx: -x, dy: -y)
-                        }
-                    }
+                let angle = values[0]
+                if values.count == 1 {
+                    transform = transform.rotate(angle: degreesToRadians(angle))
+                } else if values.count == 3 {
+                    let x = values[1]
+                    let y = values[2]
+                    transform = transform
+                        .move(dx: x, dy: y)
+                        .rotate(angle: degreesToRadians(angle))
+                        .move(dx: -x, dy: -y)
                 }
             case "skewX":
-                if let x = Double(values[0]) {
-                    let v = tan((x * Double.pi) / 180.0)
-                    finalTransform = transform.shear(shx: v, shy: 0)
-                }
+                let x = values[0]
+                let v = tan((x * Double.pi) / 180.0)
+                transform = transform.shear(shx: v, shy: 0)
             case "skewY":
-                if let y = Double(values[0]) {
-                    let y = tan((y * Double.pi) / 180.0)
-                    finalTransform = transform.shear(shx: 0, shy: y)
-                }
+                let y = values[0]
+                let v = tan((y * Double.pi) / 180.0)
+                transform = transform.shear(shx: 0, shy: v)
             case "matrix":
                 if values.count != 6 {
                     return transform
                 }
-                if let m11 = Double(values[0]), let m12 = Double(values[1]),
-                    let m21 = Double(values[2]), let m22 = Double(values[3]),
-                    let dx = Double(values[4]), let dy = Double(values[5]) {
-
-                    let transformMatrix = Transform(m11: m11, m12: m12, m21: m21, m22: m22, dx: dx, dy: dy)
-                    finalTransform = transform.concat(with: transformMatrix)
-                }
+                let m11 = values[0]
+                let m12 = values[1]
+                let m21 = values[2]
+                let m22 = values[3]
+                let dx = values[4]
+                let dy = values[5]
+                let transformMatrix = Transform(m11: m11, m12: m12, m21: m21, m22: m22, dx: dx, dy: dy)
+                transform = transform.concat(with: transformMatrix)
             default:
-                break
+                break stopParse
             }
-            let rangeToRemove = NSRange(location: 0, length: matchedAttribute.range.location + matchedAttribute.range.length)
-            let newAttributeString = (attributes as NSString).replacingCharacters(in: rangeToRemove, with: "")
-            return parseTransformationAttribute(newAttributeString, transform: finalTransform)
-        } else {
-            return transform
         }
+
+        return transform
     }
 
     /// Parse an RGB
@@ -536,23 +643,25 @@ open class SVGParser {
                          b: Int(blue.rounded(.up)))
     }
 
-    fileprivate func parseTransformValues(_ values: String, collectedValues: [String] = []) -> [String] {
-        guard let matcher = SVGParserRegexHelper.getTransformMatcher() else {
-            return collectedValues
+    fileprivate func parseTransformValues(_ values: String) -> [Double] {
+        // Parse comma-separated list of numbers.
+        var collectedValues: [Double] = []
+        let scanner = Scanner(string: values)
+
+        while !scanner.isAtEnd {
+            if let value = scanner.scannedDouble() {
+                collectedValues.append(value)
+            } else {
+                break
+            }
+            _ = scanner.scanString(",", into: nil)
         }
-        var updatedValues: [String] = collectedValues
-        let fullRange = NSRange(location: 0, length: values.count)
-        if let matchedValue = matcher.firstMatch(in: values, options: .reportCompletion, range: fullRange) {
-            let value = (values as NSString).substring(with: matchedValue.range)
-            updatedValues.append(value)
-            let rangeToRemove = NSRange(location: 0, length: matchedValue.range.location + matchedValue.range.length)
-            let newValues = (values as NSString).replacingCharacters(in: rangeToRemove, with: "")
-            return parseTransformValues(newValues, collectedValues: updatedValues)
-        }
-        return updatedValues
+
+        return collectedValues
     }
 
-    fileprivate func getStyleAttributes(_ groupAttributes: [String: String], element: SWXMLHash.XMLElement) -> [String: String] {
+    fileprivate func getStyleAttributes(_ groupAttributes: [String: String],
+                                        element: SWXMLHash.XMLElement) -> [String: String] {
         var styleAttributes: [String: String] = groupAttributes
 
         for (att, val) in styles.getStyles(element: element) {
@@ -571,9 +680,14 @@ open class SVGParser {
             }
         }
 
+        let hasCurrentColor = styleAttributes[SVGKeys.fill] == SVGKeys.currentColor
+
         self.availableStyleAttributes.forEach { availableAttribute in
             if let styleAttribute = element.allAttributes[availableAttribute]?.text, styleAttribute != "inherit" {
-                styleAttributes.updateValue(styleAttribute, forKey: availableAttribute)
+
+                if !hasCurrentColor || availableAttribute != SVGKeys.color {
+                    styleAttributes.updateValue(styleAttribute, forKey: availableAttribute)
+                }
             }
         }
 
@@ -608,6 +722,10 @@ open class SVGParser {
             let color = Color(val: defaultColor)
             return opacity != 1 ? color.with(a: opacity) : color
         }
+        if let systemColor = SVGConstants.systemColorList[colorString] {
+            let color = Color(val: systemColor)
+            return opacity != 1 ? color.with(a: opacity) : color
+        }
         if colorString.hasPrefix("rgb") {
             let color = parseRGBNotation(colorString: colorString)
             return opacity != 1 ? color.with(a: opacity) : color
@@ -615,13 +733,15 @@ open class SVGParser {
         return createColorFromHex(colorString, opacity: opacity)
     }
 
-    fileprivate func getFillColor(_ styleParts: [String: String], groupStyle: [String: String] = [:], locus: Locus? = nil) -> Fill? {
+    fileprivate func getFillColor(_ styleParts: [String: String],
+                                  groupStyle: [String: String] = [:],
+                                  locus: Locus? = nil) -> Fill? {
         var opacity: Double = 1
         if let fillOpacity = styleParts["fill-opacity"] {
             opacity = Double(fillOpacity.replacingOccurrences(of: " ", with: "")) ?? 1
         }
 
-        guard var fillColor = styleParts["fill"] else {
+        guard var fillColor = styleParts[SVGKeys.fill] else {
             return Color.black.with(a: opacity)
         }
         if let colorId = parseIdFromUrl(fillColor) {
@@ -632,7 +752,7 @@ open class SVGParser {
                 return getPatternFill(pattern: pattern, locus: locus)
             }
         }
-        if fillColor == "currentColor", let currentColor = groupStyle["color"] {
+        if fillColor == SVGKeys.currentColor, let currentColor = groupStyle[SVGKeys.color] {
             fillColor = currentColor
         }
 
@@ -641,11 +761,13 @@ open class SVGParser {
 
     fileprivate func getPatternFill(pattern: UserSpacePattern, locus: Locus?) -> Pattern {
         if pattern.userSpace == false && pattern.contentUserSpace == true {
-            let tranform = BoundsUtils.transformForLocusInRespectiveCoords(respectiveLocus: pattern.bounds, absoluteLocus: locus!)
+            let tranform = BoundsUtils.transformForLocusInRespectiveCoords(respectiveLocus: pattern.bounds,
+                                                                           absoluteLocus: locus!)
             return Pattern(content: pattern.content, bounds: pattern.bounds.applying(tranform), userSpace: true)
         }
         if pattern.userSpace == true && pattern.contentUserSpace == false {
-            if let patternNode = BoundsUtils.createNodeFromRespectiveCoords(respectiveNode: pattern.content, absoluteLocus: locus!) {
+            if let patternNode = BoundsUtils.createNodeFromRespectiveCoords(respectiveNode: pattern.content,
+                                                                            absoluteLocus: locus!) {
                 return Pattern(content: patternNode, bounds: pattern.bounds, userSpace: pattern.userSpace)
             }
         }
@@ -656,7 +778,7 @@ open class SVGParser {
         guard var strokeColor = styleParts["stroke"] else {
             return .none
         }
-        if strokeColor == "currentColor", let currentColor = groupStyle["color"] {
+        if strokeColor == SVGKeys.currentColor, let currentColor = groupStyle[SVGKeys.color] {
             strokeColor = currentColor
         }
         var opacity: Double = 1
@@ -778,7 +900,7 @@ open class SVGParser {
     }
 
     fileprivate func getOpacity(_ opacity: String) -> Double {
-        return Double(opacity.replacingOccurrences(of: " ", with: "")) ?? 1
+        Double(opacity.replacingOccurrences(of: " ", with: "")) ?? 1
     }
 
     fileprivate func parseLine(_ line: XMLIndexer) -> Line? {
@@ -800,7 +922,10 @@ open class SVGParser {
                 return .none
         }
 
-        let resultRect = Rect(x: getDoubleValue(element, attribute: "x") ?? 0, y: getDoubleValue(element, attribute: "y") ?? 0, w: width, h: height)
+        let resultRect = Rect(x: getDoubleValue(element, attribute: "x") ?? 0,
+                              y: getDoubleValue(element, attribute: "y") ?? 0,
+                              w: width,
+                              h: height)
 
         let rxOpt = getDoubleValue(element, attribute: "rx")
         let ryOpt = getDoubleValue(element, attribute: "ry")
@@ -819,7 +944,9 @@ open class SVGParser {
             return .none
         }
 
-        return Circle(cx: getDoubleValue(element, attribute: "cx") ?? 0, cy: getDoubleValue(element, attribute: "cy") ?? 0, r: r)
+        return Circle(cx: getDoubleValue(element, attribute: "cx") ?? 0,
+                      cy: getDoubleValue(element, attribute: "cy") ?? 0,
+                      r: r)
     }
 
     fileprivate func parseEllipse(_ ellipse: XMLIndexer) -> Arc? {
@@ -829,7 +956,10 @@ open class SVGParser {
                 return .none
         }
         return Arc(
-            ellipse: Ellipse(cx: getDoubleValue(element, attribute: "cx") ?? 0, cy: getDoubleValue(element, attribute: "cy") ?? 0, rx: rx, ry: ry),
+            ellipse: Ellipse(cx: getDoubleValue(element, attribute: "cx") ?? 0,
+                             cy: getDoubleValue(element, attribute: "cy") ?? 0,
+                             rx: rx,
+                             ry: ry),
             shift: 0,
             extent: degreesToRadians(360)
         )
@@ -861,15 +991,14 @@ open class SVGParser {
 
     fileprivate func parsePoints(_ pointsString: String) -> [Double] {
         var resultPoints: [Double] = []
-        let pointPairs = pointsString.replacingOccurrences(of: "-", with: " -").components(separatedBy: " ")
 
-        pointPairs.forEach { pointPair in
-            let points = pointPair.components(separatedBy: ",")
-            points.forEach { point in
-                if let resultPoint = Double(point) {
-                    resultPoints.append(resultPoint)
-                }
+        let scanner = Scanner(string: pointsString)
+        while !scanner.isAtEnd {
+            var resultPoint: Double = 0
+            if scanner.scanDouble(&resultPoint) {
+                resultPoints.append(resultPoint)
             }
+            _ = scanner.scanCharacters(from: [","], into: nil)
         }
 
         if resultPoints.count % 2 == 1 {
@@ -878,34 +1007,60 @@ open class SVGParser {
         return resultPoints
     }
 
-    fileprivate func parseImage(_ image: XMLIndexer, opacity: Double, pos: Transform = Transform(), clip: Locus?) -> Image? {
+    fileprivate func parseImage(_ image: XMLIndexer,
+                                opacity: Double,
+                                pos: Transform = Transform(),
+                                clip: Locus?) -> Image? {
         guard let element = image.element else {
             return .none
         }
         let link = element.allAttributes["xlink:href"]?.text ?? ""
-        let position = pos.move(dx: getDoubleValue(element, attribute: "x") ?? 0, dy: getDoubleValue(element, attribute: "y") ?? 0)
-        return Image(src: link, w: getIntValue(element, attribute: "width") ?? 0, h: getIntValue(element, attribute: "height") ?? 0, place: position, clip: clip, tag: getTag(element))
+        let position = pos.move(dx: getDoubleValue(element, attribute: "x") ?? 0,
+                                dy: getDoubleValue(element, attribute: "y") ?? 0)
+        return Image(src: link,
+                     w: getIntValue(element, attribute: "width") ?? 0,
+                     h: getIntValue(element, attribute: "height") ?? 0,
+                     place: position,
+                     clip: clip,
+                     tag: getTag(element))
     }
 
-    fileprivate func parseText(_ text: XMLIndexer, textAnchor: String?, fill: Fill?, stroke: Stroke?, opacity: Double, fontName: String?, fontSize: Int?, fontWeight: String?, pos: Transform = Transform()) -> Node? {
+    fileprivate func parseText(_ text: XMLIndexer,
+                               textAnchor: String?,
+                               fill: Fill?,
+                               stroke: Stroke?,
+                               opacity: Double,
+                               fontName: String?,
+                               fontSize: Int?,
+                               fontWeight: String?,
+                               pos: Transform = Transform()) -> Node? {
         guard let element = text.element else {
             return .none
         }
         if text.children.isEmpty {
-            return parseSimpleText(element, textAnchor: textAnchor, fill: fill, stroke: stroke, opacity: opacity, fontName: fontName, fontSize: fontSize, fontWeight: fontWeight, pos: pos)
+            return parseSimpleText(element,
+                                   textAnchor: textAnchor,
+                                   fill: fill,
+                                   stroke: stroke,
+                                   opacity: opacity,
+                                   fontName: fontName,
+                                   fontSize: fontSize,
+                                   fontWeight: fontWeight,
+                                   pos: pos)
         } else {
-            guard let matcher = SVGParserRegexHelper.getTextElementMatcher() else {
-                return .none
-            }
-            let elementString = element.description
-            let fullRange = NSRange(location: 0, length: elementString.count)
-            if let match = matcher.firstMatch(in: elementString, options: .reportCompletion, range: fullRange) {
-                let tspans = (elementString as NSString).substring(with: match.range(at: 1))
-                return Group(contents: collectTspans(tspans, textAnchor: textAnchor, fill: fill, stroke: stroke, opacity: opacity, fontName: fontName, fontSize: fontSize, fontWeight: fontWeight, bounds: Rect(x: getDoubleValue(element, attribute: "x") ?? 0, y: getDoubleValue(element, attribute: "y") ?? 0)),
-                             place: pos, tag: getTag(element))
-            }
+            let rect = Rect(x: getDoubleValue(element, attribute: "x") ?? 0,
+                            y: getDoubleValue(element, attribute: "y") ?? 0)
+            let collectedTspans = collectTspans(element.children,
+                                                textAnchor: textAnchor,
+                                                fill: fill,
+                                                stroke: stroke,
+                                                opacity: opacity,
+                                                fontName: fontName,
+                                                fontSize: fontSize,
+                                                fontWeight: fontWeight,
+                                                bounds: rect)
+            return Group(contents: collectedTspans, place: pos, tag: getTag(element))
         }
-        return .none
     }
 
     fileprivate func anchorToAlign(_ textAnchor: String?) -> Align {
@@ -919,94 +1074,158 @@ open class SVGParser {
         return Align.min
     }
 
-    fileprivate func parseSimpleText(_ text: SWXMLHash.XMLElement, textAnchor: String?, fill: Fill?, stroke: Stroke?, opacity: Double, fontName: String?, fontSize: Int?, fontWeight: String?, pos: Transform = Transform()) -> Text? {
+    fileprivate func parseSimpleText(_ text: SWXMLHash.XMLElement,
+                                     textAnchor: String?,
+                                     fill: Fill?,
+                                     stroke: Stroke?,
+                                     opacity: Double,
+                                     fontName: String?,
+                                     fontSize: Int?,
+                                     fontWeight: String?,
+                                     pos: Transform = Transform()) -> Text? {
         let string = text.text
-        let position = pos.move(dx: getDoubleValue(text, attribute: "x") ?? 0, dy: getDoubleValue(text, attribute: "y") ?? 0)
+        let position = pos.move(dx: getDoubleValue(text, attribute: "x") ?? 0,
+                                dy: getDoubleValue(text, attribute: "y") ?? 0)
 
-        return Text(text: string, font: getFont(fontName: fontName, fontWeight: fontWeight, fontSize: fontSize), fill: fill, stroke: stroke, align: anchorToAlign(textAnchor), baseline: .bottom, place: position, opacity: opacity, tag: getTag(text))
+        return Text(text: string,
+                    font: getFont(fontName: fontName, fontWeight: fontWeight, fontSize: fontSize),
+                    fill: fill,
+                    stroke: stroke,
+                    align: anchorToAlign(textAnchor),
+                    baseline: .bottom,
+                    place: position,
+                    opacity: opacity,
+                    tag: getTag(text))
     }
 
     // REFACTOR
 
-    fileprivate func collectTspans(_ tspan: String, collectedTspans: [Node] = [], withWhitespace: Bool = false, textAnchor: String?, fill: Fill?, stroke: Stroke?, opacity: Double, fontName: String?, fontSize: Int?, fontWeight: String?, bounds: Rect) -> [Node] {
-        let fullString = tspan.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) as NSString
-        // exit recursion
-        if fullString.isEqual(to: "") {
-            return collectedTspans
-        }
-        var collection = collectedTspans
-        let tagRange = fullString.range(of: "<tspan".lowercased())
-        if tagRange.location == 0 {
-            // parse as <tspan> element
-            let closingTagRange = fullString.range(of: "</tspan>".lowercased())
-            let tspanString = fullString.substring(to: closingTagRange.location + closingTagRange.length)
-            let tspanXml = SWXMLHash.parse(tspanString)
-            guard let indexer = tspanXml.children.first,
-                let text = parseTspan(indexer, withWhitespace: withWhitespace, textAnchor: textAnchor, fill: fill, stroke: stroke, opacity: opacity, fontName: fontName, fontSize: fontSize, fontWeight: fontWeight, bounds: bounds, previousCollectedTspan: collection.last) else {
+    fileprivate func collectTspans(_ contents: [XMLContent],
+                                   textAnchor: String?,
+                                   fill: Fill?,
+                                   stroke: Stroke?,
+                                   opacity: Double,
+                                   fontName: String?,
+                                   fontSize: Int?,
+                                   fontWeight: String?,
+                                   bounds: Rect) -> [Node] {
+        var collection: [Node] = []
+        var bounds = bounds
+        // Whether to add a space before the next non-whitespace-only text.
+        var addWhitespace = false
+        // Whether to preserve leading whitespaces before the next text
+        // by adding a single space prefix.
+        var preserveWhitespace = false
 
-                    // skip this element if it can't be parsed
-                    return collectTspans(fullString.substring(from: closingTagRange.location + closingTagRange.length), collectedTspans: collectedTspans, textAnchor: textAnchor, fill: fill, stroke: stroke, opacity: opacity,
-                                         fontName: fontName, fontSize: fontSize, fontWeight: fontWeight, bounds: bounds)
+        for element in contents {
+            let text: Text?
+            if let textElement = element as? TextElement {
+                // parse as regular text element
+                let textString = textElement.text
+                let hasLeadingWhitespace = textString.first?.isWhitespace == true
+                let hasTrailingWhitespace = textString.last?.isWhitespace == true
+
+                var trimmedString = textString.trimmingCharacters(in: .whitespacesAndNewlines)
+                let isWhitespaceOnly = trimmedString.isEmpty
+
+                if hasLeadingWhitespace && preserveWhitespace && !isWhitespaceOnly {
+                    trimmedString = " " + trimmedString
+                }
+
+                addWhitespace = preserveWhitespace && hasTrailingWhitespace
+                preserveWhitespace = false
+
+                if trimmedString.isEmpty {
+                    continue
+                }
+
+                let place = Transform().move(dx: bounds.x + bounds.w, dy: bounds.y)
+
+                text = Text(text: trimmedString,
+                            font: getFont(fontName: fontName, fontWeight: fontWeight, fontSize: fontSize),
+                            fill: fill,
+                            stroke: stroke,
+                            align: anchorToAlign(textAnchor),
+                            baseline: .alphabetic,
+                            place: place,
+                            opacity: opacity)
+            } else if let tspanElement = element as? SWXMLHash.XMLElement,
+                tspanElement.name == "tspan" {
+                // parse as <tspan> element
+                // ultimately skip it if it cannot be parsed
+                text = parseTspan(tspanElement,
+                                  withWhitespace: addWhitespace,
+                                  textAnchor: textAnchor,
+                                  fill: fill,
+                                  stroke: stroke,
+                                  opacity: opacity,
+                                  fontName: fontName,
+                                  fontSize: fontSize,
+                                  fontWeight: fontWeight,
+                                  bounds: bounds,
+                                  previousCollectedTspan: collection.last)
+                preserveWhitespace = true
+                addWhitespace = false
+            } else {
+                print("Skipped an unexpected element type: \(type(of: element)).")
+                text = nil
             }
-            collection.append(text)
-            let nextString = fullString.substring(from: closingTagRange.location + closingTagRange.length) as NSString
-            var withWhitespace = false
-            if nextString.rangeOfCharacter(from: CharacterSet.whitespacesAndNewlines).location == 0 {
-                withWhitespace = true
+
+            if let text = text {
+                collection.append(text)
+                bounds = Rect(x: bounds.x, y: bounds.y, w: bounds.w + text.bounds.w, h: bounds.h)
             }
-            return collectTspans(fullString.substring(from: closingTagRange.location + closingTagRange.length), collectedTspans: collection, withWhitespace: withWhitespace, textAnchor: textAnchor, fill: fill, stroke: stroke, opacity: opacity, fontName: fontName, fontSize: fontSize, fontWeight: fontWeight, bounds: Rect(x: bounds.x, y: bounds.y, w: bounds.w + text.bounds.w, h: bounds.h))
         }
-        // parse as regular text element
-        var textString: NSString
-        if tagRange.location >= fullString.length {
-            textString = fullString
-        } else {
-            textString = fullString.substring(to: tagRange.location) as NSString
-        }
-        var nextStringWhitespace = false
-        var trimmedString = textString.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
-        if trimmedString.count != textString.length {
-            nextStringWhitespace = true
-        }
-        trimmedString = withWhitespace ? " \(trimmedString)" : trimmedString
-        let text = Text(text: trimmedString, font: getFont(fontName: fontName, fontWeight: fontWeight, fontSize: fontSize),
-                        fill: fill, stroke: stroke, align: anchorToAlign(textAnchor), baseline: .alphabetic,
-                        place: Transform().move(dx: bounds.x + bounds.w, dy: bounds.y), opacity: opacity)
-        collection.append(text)
-        if tagRange.location >= fullString.length { // leave recursion
-            return collection
-        }
-        return collectTspans(fullString.substring(from: tagRange.location), collectedTspans: collection,
-                             withWhitespace: nextStringWhitespace, textAnchor: textAnchor, fill: fill, stroke: stroke,
-                             opacity: opacity, fontName: fontName, fontSize: fontSize, fontWeight: fontWeight, bounds: Rect(x: bounds.x, y: bounds.y, w: bounds.w + text.bounds.w, h: bounds.h))
+
+        return collection
     }
 
-    fileprivate func parseTspan(_ tspan: XMLIndexer, withWhitespace: Bool = false, textAnchor: String?, fill: Fill?, stroke: Stroke?, opacity: Double, fontName: String?, fontSize: Int?, fontWeight: String?, bounds: Rect, previousCollectedTspan: Node?) -> Text? {
-
-        guard let element = tspan.element else {
-            return .none
-        }
+    fileprivate func parseTspan(_ element: SWXMLHash.XMLElement,
+                                withWhitespace: Bool = false,
+                                textAnchor: String?,
+                                fill: Fill?,
+                                stroke: Stroke?,
+                                opacity: Double,
+                                fontName: String?,
+                                fontSize: Int?,
+                                fontWeight: String?,
+                                bounds: Rect,
+                                previousCollectedTspan: Node?) -> Text? {
 
         let string = element.text
         var shouldAddWhitespace = withWhitespace
-        let pos = getTspanPosition(element, bounds: bounds, previousCollectedTspan: previousCollectedTspan, withWhitespace: &shouldAddWhitespace)
+        let pos = getTspanPosition(element,
+                                   bounds: bounds,
+                                   previousCollectedTspan: previousCollectedTspan,
+                                   withWhitespace: &shouldAddWhitespace)
         let text = shouldAddWhitespace ? " \(string)" : string
         let attributes = getStyleAttributes([:], element: element)
 
-        return Text(text: text, font: getFont(attributes, fontName: fontName, fontWeight: fontWeight, fontSize: fontSize),
-                    fill: (attributes["fill"] != nil) ? getFillColor(attributes)! : fill, stroke: stroke ?? getStroke(attributes),
-                    align: anchorToAlign(textAnchor ?? getTextAnchor(attributes)), baseline: .alphabetic,
-                    place: pos, opacity: getOpacity(attributes), tag: getTag(element))
+        return Text(text: text,
+                    font: getFont(attributes, fontName: fontName, fontWeight: fontWeight, fontSize: fontSize),
+                    fill: (attributes[SVGKeys.fill] != nil) ? getFillColor(attributes)! : fill,
+                    stroke: stroke ?? getStroke(attributes),
+                    align: anchorToAlign(textAnchor ?? getTextAnchor(attributes)),
+                    baseline: .alphabetic,
+                    place: pos,
+                    opacity: getOpacity(attributes),
+                    tag: getTag(element))
     }
 
-    fileprivate func getFont(_ attributes: [String: String] = [:], fontName: String?, fontWeight: String?, fontSize: Int?) -> Font {
-        return Font(
+    fileprivate func getFont(_ attributes: [String: String] = [:],
+                             fontName: String?,
+                             fontWeight: String?,
+                             fontSize: Int?) -> Font {
+        Font(
             name: getFontName(attributes) ?? fontName ?? "Serif",
             size: getFontSize(attributes) ?? fontSize ?? 12,
             weight: getFontWeight(attributes) ?? fontWeight ?? "normal")
     }
 
-    fileprivate func getTspanPosition(_ element: SWXMLHash.XMLElement, bounds: Rect, previousCollectedTspan: Node?, withWhitespace: inout Bool) -> Transform {
+    fileprivate func getTspanPosition(_ element: SWXMLHash.XMLElement,
+                                      bounds: Rect,
+                                      previousCollectedTspan: Node?,
+                                      withWhitespace: inout Bool) -> Transform {
         var xPos: Double = bounds.x + bounds.w
         var yPos: Double = bounds.y
 
@@ -1044,7 +1263,9 @@ open class SVGParser {
 
     private var usedReferenced = [String: String]()
 
-    fileprivate func parseUse(_ use: XMLIndexer, groupStyle: [String: String] = [:], place: Transform = .identity) throws -> Node? {
+    fileprivate func parseUse(_ use: XMLIndexer,
+                              groupStyle: [String: String] = [:],
+                              place: Transform = .identity) throws -> Node? {
         guard let element = use.element, let link = element.allAttributes["xlink:href"]?.text else {
             return .none
         }
@@ -1059,7 +1280,8 @@ open class SVGParser {
                     usedReferenced.removeValue(forKey: id)
                 }
                 if let node = try parseNode(referenceNode, groupStyle: groupStyle) {
-                    node.place = place.move(dx: getDoubleValue(element, attribute: "x") ?? 0, dy: getDoubleValue(element, attribute: "y") ?? 0).concat(with: node.place)
+                    node.place = place.move(dx: getDoubleValue(element, attribute: "x") ?? 0,
+                                            dy: getDoubleValue(element, attribute: "y") ?? 0).concat(with: node.place)
                     return node
                 }
             }
@@ -1095,7 +1317,11 @@ open class SVGParser {
                 }
             }
         }
-        return UserSpaceLocus(locus: path!, userSpace: userSpace)
+
+        if let path = path {
+            return UserSpaceLocus(locus: path, userSpace: userSpace)
+        }
+        return .none
     }
 
     fileprivate func parseMask(_ mask: XMLIndexer) throws -> UserSpaceNode? {
@@ -1147,7 +1373,8 @@ open class SVGParser {
 
             switch element.name {
             case "feOffset":
-                if let dx = getDoubleValue(element, attribute: "dx"), let dy = getDoubleValue(element, attribute: "dy") {
+                if let dx = getDoubleValue(element, attribute: "dx"),
+                    let dy = getDoubleValue(element, attribute: "dy") {
                     resultingEffect = OffsetEffect(dx: dx, dy: dy, input: currentEffect)
                 }
             case "feGaussianBlur":
@@ -1200,7 +1427,8 @@ open class SVGParser {
         }
 
         var parentGradient: Gradient?
-        if let link = element.allAttributes["xlink:href"]?.text.replacingOccurrences(of: " ", with: ""), link.hasPrefix("#") {
+        if let link = element.allAttributes["xlink:href"]?.text.replacingOccurrences(of: " ", with: ""),
+            link.hasPrefix("#") {
 
             let id = link.replacingOccurrences(of: "#", with: "")
             parentGradient = defFills[id] as? Gradient
@@ -1261,7 +1489,8 @@ open class SVGParser {
         }
 
         var parentGradient: Gradient?
-        if let link = element.allAttributes["xlink:href"]?.text.replacingOccurrences(of: " ", with: ""), link.hasPrefix("#") {
+        if let link = element.allAttributes["xlink:href"]?.text.replacingOccurrences(of: " ", with: ""),
+            link.hasPrefix("#") {
 
             let id = link.replacingOccurrences(of: "#", with: "")
             parentGradient = defFills[id] as? Gradient
@@ -1339,17 +1568,20 @@ open class SVGParser {
         guard let element = stop.element else {
             return .none
         }
-        guard let offset = getDoubleValueFromPercentage(element, attribute: "offset") else {
-            return .none
+
+        var offset: Double = 0 // This is default value, value can be omitted
+        if let parsedOffset = getDoubleValueFromPercentage(element, attribute: "offset") {
+            offset = parsedOffset
         }
 
         var opacity: Double = 1
-        if let stopOpacity = getStyleAttributes([:], element: element)["stop-opacity"], let doubleValue = Double(stopOpacity) {
+        if let stopOpacity = getStyleAttributes([:], element: element)["stop-opacity"],
+            let doubleValue = Double(stopOpacity) {
             opacity = doubleValue
         }
         var color = Color.black.with(a: opacity)
         if var stopColor = getStyleAttributes([:], element: element)["stop-color"] {
-            if stopColor == "currentColor", let currentColor = groupStyle["color"] {
+            if stopColor == SVGKeys.currentColor, let currentColor = groupStyle[SVGKeys.color] {
                 stopColor = currentColor
             }
             color = createColor(stopColor.replacingOccurrences(of: " ", with: ""), opacity: opacity)!
@@ -1387,40 +1619,37 @@ open class SVGParser {
     }
 
     fileprivate func dimensionFromString(_ string: String) -> SVGLength? {
+        if string.hasSuffix("%"), let value = Double(string.dropLast()) {
+            return SVGLength(percent: value)
+        }
         if let value = doubleFromString(string) {
             return SVGLength(pixels: value)
-        }
-        if string.hasSuffix("%") {
-            return SVGLength(percent: Double(string.dropLast())!)
         }
         return .none
     }
 
     fileprivate func doubleFromString(_ string: String) -> Double? {
-        if let doubleValue = Double(string) {
-            return doubleValue
-        }
         if string == "none" {
             return 0
         }
-        guard let matcher = SVGParserRegexHelper.getUnitsIdenitifierMatcher() else {
+
+        let scanner = Scanner(string: string)
+        let value = scanner.scannedDouble()
+        let unit = scanner.scannedCharacters(from: .unitCharacters)
+
+        if !scanner.isAtEnd {
+            let junk = scanner.scannedUpToCharacters(from: []) ?? ""
+            print("Found trailing junk \"\(junk)\" in string \"\(string)\".")
             return .none
         }
-        let fullRange = NSRange(location: 0, length: string.count)
-        if let match = matcher.firstMatch(in: string, options: .reportCompletion, range: fullRange) {
 
-            let unitString = (string as NSString).substring(with: match.range(at: 1))
-            let numberString = String(string.dropLast(unitString.count))
-            let value = Double(numberString)!
-            switch unitString {
-            case "px" :
-                return value
-            default:
-                print("SVG parsing error. Unit \(unitString) not supported")
-                return value
-            }
+        switch unit {
+        case nil, "px":
+            return value
+        default:
+            print("SVG parsing error. Unit \"\(unit ?? "")\" is not supported")
+            return value
         }
-        return .none
     }
 
     fileprivate func getDoubleValueFromPercentage(_ element: SWXMLHash.XMLElement, attribute: String) -> Double? {
@@ -1448,7 +1677,7 @@ open class SVGParser {
     }
 
     fileprivate func getFontName(_ attributes: [String: String]) -> String? {
-        return attributes["font-family"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        attributes["font-family"]?.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     fileprivate func getFontSize(_ attributes: [String: String]) -> Int? {
@@ -1492,7 +1721,8 @@ open class SVGParser {
                     guard let locus = locus else {
                         return .none
                     }
-                    let transform = BoundsUtils.transformForLocusInRespectiveCoords(respectiveLocus: userSpaceLocus.locus, absoluteLocus: locus)
+                    let transform = BoundsUtils.transformForLocusInRespectiveCoords(respectiveLocus: userSpaceLocus.locus,
+                                                                                    absoluteLocus: locus)
                     return TransformedLocus(locus: userSpaceLocus.locus, transform: transform)
                 }
                 return userSpaceLocus.locus
@@ -1502,20 +1732,25 @@ open class SVGParser {
     }
 
     fileprivate func getMask(_ attributes: [String: String], locus: Locus?) throws -> Node? {
-        guard let maskName = attributes["mask"], let id = parseIdFromUrl(maskName), let userSpaceNode = defMasks[id], let locus = locus else {
+        guard let maskName = attributes["mask"], let locus = locus else {
+            return .none
+        }
+        guard let id = parseIdFromUrl(maskName), let userSpaceNode = defMasks[id] else {
             return .none
         }
         if !userSpaceNode.userSpace {
             if let group = userSpaceNode.node as? Group {
                 for node in group.contents {
                     if let shape = node as? Shape {
-                        shape.place = BoundsUtils.transformForLocusInRespectiveCoords(respectiveLocus: shape.form, absoluteLocus: locus)
+                        shape.place = BoundsUtils.transformForLocusInRespectiveCoords(respectiveLocus: shape.form,
+                                                                                      absoluteLocus: locus)
                     }
                 }
                 return group
             }
             if let shape = userSpaceNode.node as? Shape {
-                shape.place = BoundsUtils.transformForLocusInRespectiveCoords(respectiveLocus: shape.form, absoluteLocus: locus)
+                shape.place = BoundsUtils.transformForLocusInRespectiveCoords(respectiveLocus: shape.form,
+                                                                              absoluteLocus: locus)
                 return shape
             } else {
                 throw SVGParserError.maskUnsupportedNodeType
@@ -1563,13 +1798,40 @@ open class SVGParser {
         let tag = referenceNode.tag
 
         if let shape = referenceNode as? Shape {
-            return Shape(form: shape.form, fill: shape.fill, stroke: shape.stroke, place: pos, opaque: opaque, clip: clip, visible: visible, tag: tag)
+            return Shape(form: shape.form,
+                         fill: shape.fill,
+                         stroke: shape.stroke,
+                         place: pos,
+                         opaque: opaque,
+                         clip: clip,
+                         visible: visible,
+                         tag: tag)
         }
         if let text = referenceNode as? Text {
-            return Text(text: text.text, font: text.font, fill: text.fill, stroke: text.stroke, align: text.align, baseline: text.baseline, place: pos, opaque: opaque, clip: clip, visible: visible, tag: tag)
+            return Text(text: text.text,
+                        font: text.font,
+                        fill: text.fill,
+                        stroke: text.stroke,
+                        align: text.align,
+                        baseline: text.baseline,
+                        place: pos,
+                        opaque: opaque,
+                        clip: clip,
+                        visible: visible,
+                        tag: tag)
         }
         if let image = referenceNode as? Image {
-            return Image(src: image.src, xAlign: image.xAlign, yAlign: image.yAlign, aspectRatio: image.aspectRatio, w: image.w, h: image.h, place: pos, opaque: opaque, clip: clip, visible: visible, tag: tag)
+            return Image(src: image.src,
+                         xAlign: image.xAlign,
+                         yAlign: image.yAlign,
+                         aspectRatio: image.aspectRatio,
+                         w: image.w,
+                         h: image.h,
+                         place: pos,
+                         opaque: opaque,
+                         clip: clip,
+                         visible: visible,
+                         tag: tag)
         }
         if let group = referenceNode as? Group {
             var contents = [Node]()
@@ -1584,7 +1846,7 @@ open class SVGParser {
     }
 
     fileprivate func degreesToRadians(_ degrees: Double) -> Double {
-        return degrees * .pi / 180
+        degrees * .pi / 180
     }
 
 }
@@ -1602,7 +1864,7 @@ private class PathDataReader {
     }
 
     public func read() -> [PathSegment] {
-        _ = readNext()
+        readNext()
         var segments = [PathSegment]()
         while let array = readSegments() {
             segments.append(contentsOf: array)
@@ -1617,7 +1879,12 @@ private class PathDataReader {
                 return [PathSegment(type: type)]
             }
             var result = [PathSegment]()
-            let data = readData()
+            let data: [Double]
+            if type == .a || type == .A {
+                data = readDataOfASegment()
+            } else {
+                data = readData()
+            }
             var index = 0
             var isFirstSegment = true
             while index < data.count {
@@ -1655,6 +1922,28 @@ private class PathDataReader {
         }
     }
 
+    private func readDataOfASegment() -> [Double] {
+        let argCount = getArgCount(segment: .A)
+        var data: [Double] = []
+        var index = 0
+        while true {
+            skipSpaces()
+            let value: Double?
+            let indexMod = index % argCount
+            if indexMod == 3 || indexMod == 4 {
+                value = readFlag()
+            } else {
+                value = readNum()
+            }
+            guard let doubleValue = value else {
+                return data
+            }
+            data.append(doubleValue)
+            index += 1
+        }
+        return data
+    }
+
     private func skipSpaces() {
         var ch = current
         while ch != nil && "\n\r\t ,".contains(String(ch!)) {
@@ -1662,21 +1951,42 @@ private class PathDataReader {
         }
     }
 
+    private func readFlag() -> Double? {
+        guard let ch = current else {
+            return .none
+        }
+        readNext()
+        switch ch {
+        case "0":
+            return 0
+        case "1":
+            return 1
+        default:
+            return .none
+        }
+    }
+
     fileprivate func readNum() -> Double? {
         guard let ch = current else {
-            return nil
+            return .none
         }
-        if (ch >= "0" && ch <= "9") || ch == "." || ch == "-" {
-            var chars = [ch]
-            var hasDot = ch == "."
-            while let ch = readDigit(&hasDot) {
-                chars.append(ch)
-            }
-            var buf = ""
-            buf.unicodeScalars.append(contentsOf: chars)
-            return Double(buf)
+
+        guard ch >= "0" && ch <= "9" || ch == "." || ch == "-" else {
+            return .none
         }
-        return nil
+
+        var chars = [ch]
+        var hasDot = ch == "."
+        while let ch = readDigit(&hasDot) {
+            chars.append(ch)
+        }
+
+        var buf = ""
+        buf.unicodeScalars.append(contentsOf: chars)
+        guard let value = Double(buf) else {
+            return .none
+        }
+        return value
     }
 
     fileprivate func readDigit(_ hasDot: inout Bool) -> UnicodeScalar? {
@@ -1706,6 +2016,7 @@ private class PathDataReader {
         return false
     }
 
+    @discardableResult
     private func readNext() -> UnicodeScalar? {
         previous = current
         current = iterator.next()
@@ -1722,7 +2033,7 @@ private class PathDataReader {
     private func readSegmentType() -> PathSegmentType? {
         while true {
             if let type = getPathSegmentType() {
-                _ = readNext()
+                readNext()
                 return type
             }
             if readNext() == nil {
@@ -1838,4 +2149,62 @@ fileprivate class UserSpacePattern {
         self.userSpace = userSpace
         self.contentUserSpace = contentUserSpace
     }
+}
+
+fileprivate enum SVGKeys {
+    static let fill = "fill"
+    static let color = "color"
+    static let currentColor = "currentColor"
+}
+
+fileprivate extension Scanner {
+    /// A version of `scanDouble()`, available for an earlier OS.
+    func scannedDouble() -> Double? {
+        if #available(OSX 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *) {
+            return scanDouble()
+        } else {
+            var double: Double = 0
+            return scanDouble(&double) ? double : nil
+        }
+    }
+
+    /// A version of `scanCharacters(from:)`, available for an earlier OS.
+    func scannedCharacters(from set: CharacterSet) -> String? {
+        if #available(OSX 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *) {
+            return scanCharacters(from: set)
+        } else {
+            var string: NSString?
+            return scanCharacters(from: set, into: &string) ? string as String? : nil
+        }
+    }
+
+    /// A version of `scanUpToCharacters(from:)`, available for an earlier OS.
+    func scannedUpToCharacters(from set: CharacterSet) -> String? {
+        if #available(OSX 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *) {
+            return scanUpToCharacters(from: set)
+        } else {
+            var string: NSString?
+            return scanUpToCharacters(from: set, into: &string) ? string as String? : nil
+        }
+    }
+
+    /// A version of `scanUpToString(_:)`, available for an earlier OS.
+    func scannedUpToString(_ substring: String) -> String? {
+        if #available(OSX 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *) {
+            return scanUpToString(substring)
+        } else {
+            var string: NSString?
+            return scanUpTo(substring, into: &string) ? string as String? : nil
+        }
+    }
+}
+
+fileprivate extension CharacterSet {
+    /// Latin alphabet characters.
+    static let latinAlphabet = CharacterSet(charactersIn: "a"..."z")
+        .union(CharacterSet(charactersIn: "A"..."Z"))
+
+    static let unitCharacters = CharacterSet.latinAlphabet
+
+    static let transformationAttributeCharacters = CharacterSet.latinAlphabet
 }

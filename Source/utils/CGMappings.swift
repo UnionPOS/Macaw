@@ -26,8 +26,8 @@ public extension Color {
 public extension Transform {
 
     func toCG() -> CGAffineTransform {
-        return CGAffineTransform(a: CGFloat(m11), b: CGFloat(m12), c: CGFloat(m21),
-                                 d: CGFloat(m22), tx: CGFloat(dx), ty: CGFloat(dy))
+        CGAffineTransform(a: CGFloat(m11), b: CGFloat(m12), c: CGFloat(m21),
+                          d: CGFloat(m22), tx: CGFloat(dx), ty: CGFloat(dy))
     }
 
 }
@@ -65,11 +65,11 @@ public extension LineCap {
 public extension Rect {
 
     func toCG() -> CGRect {
-        return CGRect(x: self.x, y: self.y, width: self.w, height: self.h)
+        CGRect(x: self.x, y: self.y, width: self.w, height: self.h)
     }
 
     func applying(_ t: Transform) -> Rect {
-        return toCG().applying(t.toCG()).toMacaw()
+        toCG().applying(t.toCG()).toMacaw()
     }
 
 }
@@ -77,10 +77,10 @@ public extension Rect {
 public extension CGRect {
 
     func toMacaw() -> Rect {
-        return Rect(x: Double(origin.x),
-                    y: Double(origin.y),
-                    w: Double(size.width),
-                    h: Double(size.height))
+        Rect(x: Double(origin.x),
+             y: Double(origin.y),
+             w: Double(size.width),
+             h: Double(size.height))
     }
 
 }
@@ -88,7 +88,7 @@ public extension CGRect {
 public extension Size {
 
     func toCG() -> CGSize {
-        return CGSize(width: self.w, height: self.h)
+        CGSize(width: self.w, height: self.h)
     }
 
 }
@@ -96,8 +96,8 @@ public extension Size {
 public extension CGSize {
 
     func toMacaw() -> Size {
-        return Size(w: Double(width),
-                    h: Double(height))
+        Size(w: Double(width),
+             h: Double(height))
     }
 
 }
@@ -105,7 +105,7 @@ public extension CGSize {
 public extension Point {
 
     func toCG() -> CGPoint {
-        return CGPoint(x: self.x, y: self.y)
+        CGPoint(x: self.x, y: self.y)
     }
 
 }
@@ -113,7 +113,7 @@ public extension Point {
 public extension CGPoint {
 
     func toMacaw() -> Point {
-        return Point(x: Double(x), y: Double(y))
+        Point(x: Double(x), y: Double(y))
     }
 
 }
@@ -121,7 +121,7 @@ public extension CGPoint {
 public extension Locus {
 
     func toCGPath() -> CGPath {
-        return RenderUtils.toCGPath(self)
+        RenderUtils.toCGPath(self)
     }
 
 }
@@ -129,14 +129,14 @@ public extension Locus {
 public extension CGAffineTransform {
 
     func toMacaw() -> Transform {
-        return Transform(m11: Double(a), m12: Double(b), m21: Double(c), m22: Double(d), dx: Double(tx), dy: Double(ty))
+        Transform(m11: Double(a), m12: Double(b), m21: Double(c), m22: Double(d), dx: Double(tx), dy: Double(ty))
     }
 }
 
 public extension Node {
 
     func toNativeImage(size: Size, layout: ContentLayout = .of()) -> MImage {
-        let renderer = RenderUtils.createNodeRenderer(self, view: nil, animationCache: nil)
+        let renderer = RenderUtils.createNodeRenderer(self, view: nil)
         let rect = size.rect()
 
         MGraphicsBeginImageContextWithOptions(size.toCG(), false, 1)
@@ -152,4 +152,62 @@ public extension Node {
         return img!
     }
 
+}
+
+extension MBezierPath {
+
+    public func toMacaw() -> Path {
+        let fillRule: FillRule = self.mUsesEvenOddFillRule ? .evenodd : .nonzero
+        return self.cgPath.toMacaw(fillRule: fillRule)
+    }
+
+}
+
+extension CGPath {
+
+    public func toMacaw(fillRule: FillRule = .nonzero) -> Path {
+
+        func createPathSegment(type: PathSegmentType, points: UnsafeMutablePointer<CGPoint>, count: Int) -> PathSegment {
+
+            var data = [Double]()
+            for index in 0..<count {
+                let point = points[index]
+                data.append(contentsOf: [Double(point.x), Double(point.y)])
+            }
+            return PathSegment(type: type, data: data)
+        }
+
+        var segments = [PathSegment]()
+        self.forEach { (element: CGPathElement) in
+
+            let segment: PathSegment
+            switch element.type {
+            case .moveToPoint:
+                segment = createPathSegment(type: .M, points: element.points, count: 1)
+            case .addLineToPoint:
+                segment = createPathSegment(type: .L, points: element.points, count: 1)
+            case .addQuadCurveToPoint:
+                segment = createPathSegment(type: .Q, points: element.points, count: 2)
+            case .addCurveToPoint:
+                segment = createPathSegment(type: .C, points: element.points, count: 3)
+            case .closeSubpath:
+                segment = PathSegment(type: .z)
+            @unknown default:
+                fatalError("Unknown element type: \(element.type)")
+            }
+            segments.append(segment)
+        }
+
+        return Path(segments: segments, fillRule: .nonzero)
+    }
+
+    private func forEach( body: @escaping @convention(block) (CGPathElement) -> Void) {
+        typealias Body = @convention(block) (CGPathElement) -> Void
+        func callback(info: UnsafeMutableRawPointer?, element: UnsafePointer<CGPathElement>) {
+            let body = unsafeBitCast(info, to: Body.self)
+            body(element.pointee)
+        }
+        let unsafeBody = unsafeBitCast(body, to: UnsafeMutableRawPointer.self)
+        self.apply(info: unsafeBody, function: callback)
+    }
 }
